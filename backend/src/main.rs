@@ -1,9 +1,13 @@
 mod config;
+mod db;
 mod error;
 mod router;
+mod state;
 
 use config::Config;
+use db::Db;
 use error::AppError;
+use state::AppState;
 use tracing::info;
 use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -11,6 +15,8 @@ use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberI
 async fn main() -> Result<(), AppError> {
     let config = Config::from_env()?;
     init_tracing(&config.rust_log)?;
+    let db = Db::connect(&config.database_url).await?;
+    let state = AppState::new(db);
 
     let listener = tokio::net::TcpListener::bind(config.bind_addr).await?;
     let local_addr = listener.local_addr()?;
@@ -18,11 +24,11 @@ async fn main() -> Result<(), AppError> {
     info!(
         %local_addr,
         static_dir = %config.static_dir.display(),
-        database_configured = !config.database_url.is_empty(),
+        database_pool_ready = true,
         "backend listening"
     );
 
-    axum::serve(listener, router::build_router()).await?;
+    axum::serve(listener, router::build_router(state)).await?;
 
     Ok(())
 }

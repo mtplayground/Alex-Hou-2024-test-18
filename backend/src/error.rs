@@ -14,6 +14,7 @@ pub enum AppError {
         name: &'static str,
         source: VarError,
     },
+    Database(sqlx::Error),
     InvalidBindAddress {
         value: String,
         source: AddrParseError,
@@ -27,6 +28,7 @@ impl AppError {
         match self {
             Self::Dotenv(_) => "dotenv_load_failed",
             Self::MissingEnvVar { .. } => "missing_env_var",
+            Self::Database(_) => "database_error",
             Self::InvalidBindAddress { .. } => "invalid_bind_address",
             Self::Io(_) => "io_error",
             Self::TracingInit(_) => "tracing_init_failed",
@@ -37,6 +39,7 @@ impl AppError {
         match self {
             Self::Dotenv(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::MissingEnvVar { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::Database(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::InvalidBindAddress { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             Self::Io(_) | Self::TracingInit(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
@@ -50,6 +53,7 @@ impl fmt::Display for AppError {
             Self::MissingEnvVar { name, .. } => {
                 write!(f, "missing required environment variable `{name}`")
             }
+            Self::Database(error) => write!(f, "database error: {error}"),
             Self::InvalidBindAddress { value, .. } => {
                 write!(f, "failed to parse BIND_ADDR value `{value}`")
             }
@@ -64,6 +68,7 @@ impl std::error::Error for AppError {
         match self {
             Self::Dotenv(error) => Some(error),
             Self::MissingEnvVar { source, .. } => Some(source),
+            Self::Database(error) => Some(error),
             Self::InvalidBindAddress { source, .. } => Some(source),
             Self::Io(error) => Some(error),
             Self::TracingInit(_) => None,
@@ -74,6 +79,12 @@ impl std::error::Error for AppError {
 impl From<std::io::Error> for AppError {
     fn from(error: std::io::Error) -> Self {
         Self::Io(error)
+    }
+}
+
+impl From<sqlx::Error> for AppError {
+    fn from(error: sqlx::Error) -> Self {
+        Self::Database(error)
     }
 }
 
