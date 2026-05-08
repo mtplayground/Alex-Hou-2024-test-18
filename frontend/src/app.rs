@@ -1,7 +1,16 @@
 use leptos::prelude::*;
 
+use crate::todos::TodosStore;
+
 #[component]
 pub fn App() -> impl IntoView {
+    let todos = TodosStore::new();
+    provide_context(todos);
+
+    let all_todos = move || todos.todos.get();
+    let has_todos = move || !all_todos().is_empty();
+    let active_count = move || all_todos().iter().filter(|todo| !todo.completed).count();
+
     view! {
         <section class="todoapp">
             <header class="header">
@@ -14,16 +23,16 @@ pub fn App() -> impl IntoView {
                 />
             </header>
 
-            <section class="main hidden">
+            <section class=move || if has_todos() { "main" } else { "main hidden" }>
                 <input id="toggle-all" class="toggle-all" type="checkbox" />
                 <label for="toggle-all">"Mark all as complete"</label>
 
                 <ul class="todo-list"></ul>
             </section>
 
-            <footer class="footer hidden">
+            <footer class=move || if has_todos() { "footer" } else { "footer hidden" }>
                 <span class="todo-count">
-                    <strong>"0"</strong>
+                    <strong>{move || active_count().to_string()}</strong>
                     " items left"
                 </span>
 
