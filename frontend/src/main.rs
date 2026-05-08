@@ -1,6 +1,7 @@
 pub mod api;
 mod app;
 mod header;
+mod todo_item;
 pub mod todos;
 
 #[cfg(target_arch = "wasm32")]

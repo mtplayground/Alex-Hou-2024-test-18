@@ -1,6 +1,7 @@
 use leptos::prelude::*;
 
 use crate::header::Header;
+use crate::todo_item::TodoItem;
 use crate::todos::TodosStore;
 
 #[component]
@@ -20,7 +21,14 @@ pub fn App() -> impl IntoView {
                 <input id="toggle-all" class="toggle-all" type="checkbox" />
                 <label for="toggle-all">"Mark all as complete"</label>
 
-                <ul class="todo-list"></ul>
+                <ul class="todo-list">
+                    {move || {
+                        all_todos()
+                            .into_iter()
+                            .map(|todo| view! { <TodoItem todo=todo /> })
+                            .collect_view()
+                    }}
+                </ul>
             </section>
 
             <footer class=move || if has_todos() { "footer" } else { "footer hidden" }>
