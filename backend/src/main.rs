@@ -29,7 +29,9 @@ async fn main() -> Result<(), AppError> {
         "backend listening"
     );
 
-    axum::serve(listener, router::build_router(state)).await?;
+    let router = router::build_router(state, &config)?;
+
+    axum::serve(listener, router).await?;
 
     Ok(())
 }

@@ -1,22 +1,29 @@
 use axum::{
     Json, Router,
     extract::{Path, State},
-    http::StatusCode,
+    http::{HeaderValue, Method, StatusCode},
     routing::{get, patch},
 };
 use serde::Serialize;
 use shared::dto::{NewTodo, Todo, ToggleAll, UpdateTodo};
+use tower_http::{
+    cors::{AllowOrigin, Any, CorsLayer},
+    trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer},
+};
+use tracing::Level;
 use uuid::Uuid;
 
-use crate::{error::AppError, state::AppState};
+use crate::{config::Config, error::AppError, state::AppState};
 
 #[derive(Debug, Serialize)]
 struct HealthResponse {
     status: &'static str,
 }
 
-pub fn build_router(state: AppState) -> Router {
-    Router::new()
+pub fn build_router(state: AppState, config: &Config) -> Result<Router, AppError> {
+    let cors_layer = build_cors_layer(config)?;
+
+    Ok(Router::new()
         .route("/healthz", get(healthz))
         .route("/api/todos", get(list_todos).post(create_todo))
         .route("/api/todos/toggle-all", patch(toggle_all_todos))
@@ -25,7 +32,14 @@ pub fn build_router(state: AppState) -> Router {
             axum::routing::delete(clear_completed_todos),
         )
         .route("/api/todos/{id}", patch(update_todo).delete(delete_todo))
-        .with_state(state)
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
+                .on_request(DefaultOnRequest::new().level(Level::INFO))
+                .on_response(DefaultOnResponse::new().level(Level::INFO)),
+        )
+        .layer(cors_layer)
+        .with_state(state))
 }
 
 async fn healthz(State(state): State<AppState>) -> Json<HealthResponse> {
@@ -109,4 +123,25 @@ fn validate_title(title: &str) -> Result<String, AppError> {
     }
 
     Ok(trimmed.to_owned())
+}
+
+fn build_cors_layer(config: &Config) -> Result<CorsLayer, AppError> {
+    let allowed_origins = config
+        .cors_allowed_origins
+        .iter()
+        .map(|origin| {
+            HeaderValue::from_str(origin).map_err(|_| AppError::InvalidCorsOrigin(origin.clone()))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    Ok(CorsLayer::new()
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::PATCH,
+            Method::DELETE,
+            Method::OPTIONS,
+        ])
+        .allow_headers(Any)
+        .allow_origin(AllowOrigin::list(allowed_origins)))
 }

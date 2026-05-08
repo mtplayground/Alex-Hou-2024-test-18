@@ -21,6 +21,7 @@ pub enum AppError {
         value: String,
         source: AddrParseError,
     },
+    InvalidCorsOrigin(String),
     Io(std::io::Error),
     TracingInit(String),
 }
@@ -34,6 +35,7 @@ impl AppError {
             Self::MissingEnvVar { .. } => "missing_env_var",
             Self::Database(_) => "database_error",
             Self::InvalidBindAddress { .. } => "invalid_bind_address",
+            Self::InvalidCorsOrigin(_) => "invalid_cors_origin",
             Self::Io(_) => "io_error",
             Self::TracingInit(_) => "tracing_init_failed",
         }
@@ -47,6 +49,7 @@ impl AppError {
             Self::MissingEnvVar { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             Self::Database(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::InvalidBindAddress { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::InvalidCorsOrigin(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::Io(_) | Self::TracingInit(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
@@ -65,6 +68,9 @@ impl fmt::Display for AppError {
             Self::InvalidBindAddress { value, .. } => {
                 write!(f, "failed to parse BIND_ADDR value `{value}`")
             }
+            Self::InvalidCorsOrigin(value) => {
+                write!(f, "failed to parse CORS origin value `{value}`")
+            }
             Self::Io(error) => write!(f, "i/o error: {error}"),
             Self::TracingInit(error) => write!(f, "failed to initialize tracing: {error}"),
         }
@@ -80,6 +86,7 @@ impl std::error::Error for AppError {
             Self::MissingEnvVar { source, .. } => Some(source),
             Self::Database(error) => Some(error),
             Self::InvalidBindAddress { source, .. } => Some(source),
+            Self::InvalidCorsOrigin(_) => None,
             Self::Io(error) => Some(error),
             Self::TracingInit(_) => None,
         }
