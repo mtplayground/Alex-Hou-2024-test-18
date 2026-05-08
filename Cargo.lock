@@ -602,6 +602,8 @@ dependencies = [
  "serde",
  "shared",
  "uuid",
+ "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]
