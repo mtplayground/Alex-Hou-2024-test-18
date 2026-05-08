@@ -1,6 +1,8 @@
 pub mod api;
 mod app;
+pub mod filter;
 mod header;
+mod main_section;
 mod todo_item;
 pub mod todos;
 
