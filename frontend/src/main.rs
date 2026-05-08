@@ -1,3 +1,4 @@
+pub mod api;
 mod app;
 
 #[cfg(target_arch = "wasm32")]
