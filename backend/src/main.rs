@@ -1,32 +1,34 @@
+mod config;
 mod error;
 mod router;
 
-use std::{env, net::SocketAddr};
-
+use config::Config;
 use error::AppError;
 use tracing::info;
 use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
-const DEFAULT_BIND_ADDR: &str = "0.0.0.0:8080";
-
 #[tokio::main]
 async fn main() -> Result<(), AppError> {
-    init_tracing()?;
+    let config = Config::from_env()?;
+    init_tracing(&config.rust_log)?;
 
-    let bind_addr = read_bind_addr()?;
-    let listener = tokio::net::TcpListener::bind(bind_addr).await?;
+    let listener = tokio::net::TcpListener::bind(config.bind_addr).await?;
     let local_addr = listener.local_addr()?;
 
-    info!(%local_addr, "backend listening");
+    info!(
+        %local_addr,
+        static_dir = %config.static_dir.display(),
+        database_configured = !config.database_url.is_empty(),
+        "backend listening"
+    );
 
     axum::serve(listener, router::build_router()).await?;
 
     Ok(())
 }
 
-fn init_tracing() -> Result<(), AppError> {
-    let env_filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new("backend=info,tower_http=info"));
+fn init_tracing(rust_log: &str) -> Result<(), AppError> {
+    let env_filter = EnvFilter::new(rust_log.to_owned());
 
     tracing_subscriber::registry()
         .with(env_filter)
@@ -35,13 +37,4 @@ fn init_tracing() -> Result<(), AppError> {
         .map_err(|error| AppError::TracingInit(error.to_string()))?;
 
     Ok(())
-}
-
-fn read_bind_addr() -> Result<SocketAddr, AppError> {
-    let value = env::var("BIND_ADDR").unwrap_or_else(|_| DEFAULT_BIND_ADDR.to_owned());
-
-    value.parse().map_err(|source| AppError::InvalidBindAddress {
-        value,
-        source,
-    })
 }

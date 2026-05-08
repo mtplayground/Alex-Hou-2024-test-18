@@ -1,4 +1,4 @@
-use std::{fmt, net::AddrParseError};
+use std::{env::VarError, fmt, net::AddrParseError};
 
 use axum::{
     Json,
@@ -9,6 +9,11 @@ use serde::Serialize;
 
 #[derive(Debug)]
 pub enum AppError {
+    Dotenv(dotenvy::Error),
+    MissingEnvVar {
+        name: &'static str,
+        source: VarError,
+    },
     InvalidBindAddress {
         value: String,
         source: AddrParseError,
@@ -20,6 +25,8 @@ pub enum AppError {
 impl AppError {
     fn code(&self) -> &'static str {
         match self {
+            Self::Dotenv(_) => "dotenv_load_failed",
+            Self::MissingEnvVar { .. } => "missing_env_var",
             Self::InvalidBindAddress { .. } => "invalid_bind_address",
             Self::Io(_) => "io_error",
             Self::TracingInit(_) => "tracing_init_failed",
@@ -28,6 +35,8 @@ impl AppError {
 
     fn status_code(&self) -> StatusCode {
         match self {
+            Self::Dotenv(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::MissingEnvVar { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             Self::InvalidBindAddress { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             Self::Io(_) | Self::TracingInit(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
@@ -37,6 +46,10 @@ impl AppError {
 impl fmt::Display for AppError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Dotenv(error) => write!(f, "failed to load .env file: {error}"),
+            Self::MissingEnvVar { name, .. } => {
+                write!(f, "missing required environment variable `{name}`")
+            }
             Self::InvalidBindAddress { value, .. } => {
                 write!(f, "failed to parse BIND_ADDR value `{value}`")
             }
@@ -49,6 +62,8 @@ impl fmt::Display for AppError {
 impl std::error::Error for AppError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::Dotenv(error) => Some(error),
+            Self::MissingEnvVar { source, .. } => Some(source),
             Self::InvalidBindAddress { source, .. } => Some(source),
             Self::Io(error) => Some(error),
             Self::TracingInit(_) => None,
