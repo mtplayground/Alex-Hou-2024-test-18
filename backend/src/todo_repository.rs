@@ -1,20 +1,10 @@
 #![allow(dead_code)]
 
-use chrono::{DateTime, Utc};
 use sqlx::PgPool;
+use shared::dto::Todo;
 use uuid::Uuid;
 
 use crate::{db::Db, error::AppError};
-
-#[derive(Debug, Clone)]
-pub struct Todo {
-    pub id: Uuid,
-    pub title: String,
-    pub completed: bool,
-    pub position: i64,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-}
 
 #[derive(Debug, Clone)]
 pub struct TodoRepository {

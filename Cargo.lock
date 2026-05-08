@@ -182,6 +182,7 @@ dependencies = [
  "chrono",
  "dotenvy",
  "serde",
+ "shared",
  "sqlx",
  "tokio",
  "tracing",
