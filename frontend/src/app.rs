@@ -1,13 +1,17 @@
 use leptos::prelude::*;
 
+use crate::filter::{CurrentFilter, TodoFilter};
 use crate::header::Header;
-use crate::todo_item::TodoItem;
+use crate::main_section::MainSection;
 use crate::todos::TodosStore;
 
 #[component]
 pub fn App() -> impl IntoView {
     let todos = TodosStore::new();
+    let current_filter = CurrentFilter(RwSignal::new(TodoFilter::All));
+
     provide_context(todos);
+    provide_context(current_filter);
 
     let all_todos = move || todos.todos.get();
     let has_todos = move || !all_todos().is_empty();
@@ -17,19 +21,7 @@ pub fn App() -> impl IntoView {
         <section class="todoapp">
             <Header />
 
-            <section class=move || if has_todos() { "main" } else { "main hidden" }>
-                <input id="toggle-all" class="toggle-all" type="checkbox" />
-                <label for="toggle-all">"Mark all as complete"</label>
-
-                <ul class="todo-list">
-                    {move || {
-                        all_todos()
-                            .into_iter()
-                            .map(|todo| view! { <TodoItem todo=todo /> })
-                            .collect_view()
-                    }}
-                </ul>
-            </section>
+            <MainSection />
 
             <footer class=move || if has_todos() { "footer" } else { "footer hidden" }>
                 <span class="todo-count">
