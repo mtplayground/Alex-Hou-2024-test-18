@@ -1,5 +1,6 @@
 pub mod api;
 mod app;
+mod footer;
 pub mod filter;
 mod header;
 mod main_section;
