@@ -10,6 +10,7 @@ use serde::Serialize;
 #[derive(Debug)]
 pub enum AppError {
     Dotenv(dotenvy::Error),
+    NotFound(String),
     Validation(String),
     MissingEnvVar {
         name: &'static str,
@@ -28,6 +29,7 @@ impl AppError {
     fn code(&self) -> &'static str {
         match self {
             Self::Dotenv(_) => "dotenv_load_failed",
+            Self::NotFound(_) => "not_found",
             Self::Validation(_) => "validation_error",
             Self::MissingEnvVar { .. } => "missing_env_var",
             Self::Database(_) => "database_error",
@@ -40,6 +42,7 @@ impl AppError {
     fn status_code(&self) -> StatusCode {
         match self {
             Self::Dotenv(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::NotFound(_) => StatusCode::NOT_FOUND,
             Self::Validation(_) => StatusCode::BAD_REQUEST,
             Self::MissingEnvVar { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             Self::Database(_) => StatusCode::INTERNAL_SERVER_ERROR,
@@ -53,6 +56,7 @@ impl fmt::Display for AppError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Dotenv(error) => write!(f, "failed to load .env file: {error}"),
+            Self::NotFound(message) => write!(f, "{message}"),
             Self::Validation(message) => write!(f, "{message}"),
             Self::MissingEnvVar { name, .. } => {
                 write!(f, "missing required environment variable `{name}`")
@@ -71,6 +75,7 @@ impl std::error::Error for AppError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Dotenv(error) => Some(error),
+            Self::NotFound(_) => None,
             Self::Validation(_) => None,
             Self::MissingEnvVar { source, .. } => Some(source),
             Self::Database(error) => Some(error),
