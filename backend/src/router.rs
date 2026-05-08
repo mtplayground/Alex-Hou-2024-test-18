@@ -1,13 +1,14 @@
 use axum::{
     Json, Router,
-    extract::{Path, State},
+    extract::{OriginalUri, Path, State},
     http::{HeaderValue, Method, StatusCode},
-    routing::{get, patch},
+    routing::{any, get, patch},
 };
 use serde::Serialize;
 use shared::dto::{NewTodo, Todo, ToggleAll, UpdateTodo};
 use tower_http::{
     cors::{AllowOrigin, Any, CorsLayer},
+    services::{ServeDir, ServeFile},
     trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer},
 };
 use tracing::Level;
@@ -22,16 +23,20 @@ struct HealthResponse {
 
 pub fn build_router(state: AppState, config: &Config) -> Result<Router, AppError> {
     let cors_layer = build_cors_layer(config)?;
-
-    Ok(Router::new()
-        .route("/healthz", get(healthz))
-        .route("/api/todos", get(list_todos).post(create_todo))
-        .route("/api/todos/toggle-all", patch(toggle_all_todos))
+    let api_router = Router::new()
+        .route("/todos", get(list_todos).post(create_todo))
+        .route("/todos/toggle-all", patch(toggle_all_todos))
         .route(
-            "/api/todos/completed",
+            "/todos/completed",
             axum::routing::delete(clear_completed_todos),
         )
-        .route("/api/todos/{id}", patch(update_todo).delete(delete_todo))
+        .route("/todos/{id}", patch(update_todo).delete(delete_todo))
+        .fallback(any(api_not_found))
+        .with_state(state.clone());
+
+    let mut router = Router::new()
+        .route("/healthz", get(healthz))
+        .nest("/api", api_router)
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
@@ -39,7 +44,13 @@ pub fn build_router(state: AppState, config: &Config) -> Result<Router, AppError
                 .on_response(DefaultOnResponse::new().level(Level::INFO)),
         )
         .layer(cors_layer)
-        .with_state(state))
+        .with_state(state);
+
+    if let Some(static_dir) = &config.static_dir {
+        router = router.fallback_service(build_static_service(static_dir));
+    }
+
+    Ok(router)
 }
 
 async fn healthz(State(state): State<AppState>) -> Json<HealthResponse> {
@@ -125,6 +136,10 @@ fn validate_title(title: &str) -> Result<String, AppError> {
     Ok(trimmed.to_owned())
 }
 
+async fn api_not_found(OriginalUri(uri): OriginalUri) -> AppError {
+    AppError::NotFound(format!("route `{}` not found", uri.path()))
+}
+
 fn build_cors_layer(config: &Config) -> Result<CorsLayer, AppError> {
     let allowed_origins = config
         .cors_allowed_origins
@@ -144,4 +159,8 @@ fn build_cors_layer(config: &Config) -> Result<CorsLayer, AppError> {
         ])
         .allow_headers(Any)
         .allow_origin(AllowOrigin::list(allowed_origins)))
+}
+
+fn build_static_service(static_dir: &std::path::Path) -> ServeDir<ServeFile> {
+    ServeDir::new(static_dir).fallback(ServeFile::new(static_dir.join("index.html")))
 }

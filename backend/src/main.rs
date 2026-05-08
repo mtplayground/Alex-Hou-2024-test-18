@@ -24,7 +24,11 @@ async fn main() -> Result<(), AppError> {
 
     info!(
         %local_addr,
-        static_dir = %config.static_dir.display(),
+        static_dir = config
+            .static_dir
+            .as_ref()
+            .map(|path| path.display().to_string())
+            .unwrap_or_else(|| "disabled".to_owned()),
         database_pool_ready = true,
         "backend listening"
     );
