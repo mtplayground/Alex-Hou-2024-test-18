@@ -39,7 +39,7 @@ pub fn Footer() -> impl IntoView {
                 <li>
                     <a
                         class=move || if current_filter.0.get() == TodoFilter::All { "selected" } else { "" }
-                        href="#/"
+                        href=TodoFilter::All.as_hash()
                     >
                         "All"
                     </a>
@@ -47,7 +47,7 @@ pub fn Footer() -> impl IntoView {
                 <li>
                     <a
                         class=move || if current_filter.0.get() == TodoFilter::Active { "selected" } else { "" }
-                        href="#/active"
+                        href=TodoFilter::Active.as_hash()
                     >
                         "Active"
                     </a>
@@ -61,7 +61,7 @@ pub fn Footer() -> impl IntoView {
                                 ""
                             }
                         }
-                        href="#/completed"
+                        href=TodoFilter::Completed.as_hash()
                     >
                         "Completed"
                     </a>

@@ -1,7 +1,7 @@
 use leptos::prelude::*;
 
 use crate::footer::Footer;
-use crate::filter::{CurrentFilter, TodoFilter};
+use crate::filter::provide_current_filter;
 use crate::header::Header;
 use crate::main_section::MainSection;
 use crate::todos::TodosStore;
@@ -9,10 +9,9 @@ use crate::todos::TodosStore;
 #[component]
 pub fn App() -> impl IntoView {
     let todos = TodosStore::new();
-    let current_filter = CurrentFilter(RwSignal::new(TodoFilter::All));
 
     provide_context(todos);
-    provide_context(current_filter);
+    provide_current_filter();
 
     view! {
         <section class="todoapp">
