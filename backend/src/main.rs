@@ -1,14 +1,4 @@
-mod config;
-mod db;
-mod error;
-mod router;
-mod state;
-mod todo_repository;
-
-use config::Config;
-use db::Db;
-use error::AppError;
-use state::AppState;
+use backend::{config::Config, db::Db, error::AppError, router, state::AppState};
 use tracing::info;
 use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
