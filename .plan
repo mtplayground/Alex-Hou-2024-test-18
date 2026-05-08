@@ -1,0 +1,87 @@
+# ZeroClaw Architecture Plan
+
+## Target structure
+
+- `Cargo.toml` at repo root defines a workspace with `backend`, `frontend`, and `shared`.
+- `backend/` is an Axum server crate responsible for HTTP routing, database access, static asset serving, config loading, and integration tests.
+- `frontend/` is a Leptos client crate built with Trunk, containing UI components, reactive state, hash-route filter state, and an API client targeting the backend JSON endpoints.
+- `shared/` is a plain Rust library crate for cross-boundary DTOs, enums, and validation-friendly request/response types shared by backend and frontend.
+
+## Expected backend organization
+
+- `backend/src/main.rs`: process startup, config loading, tracing bootstrap, listener bind, router assembly.
+- `backend/src/config.rs`: `.env` and environment parsing via `dotenvy`.
+- `backend/src/app.rs`: application state construction, Postgres pool wiring, top-level router builder.
+- `backend/src/http/`
+  - `mod.rs`: route mounting.
+  - `todos.rs`: todo handlers for list/create/update/delete/bulk operations.
+  - `middleware.rs`: CORS, tracing, timeout/error mapping helpers.
+  - `error.rs`: API error type mapped into stable JSON/HTTP responses.
+- `backend/src/db/`
+  - `mod.rs`: pool creation and shared DB helpers.
+  - `models.rs`: SQLx row structs if separate from DTOs.
+  - `todos.rs`: repository implementation and SQLx queries.
+- `backend/migrations/`: SQLx migrations including initial `todos` table.
+- `backend/tests/`: integration tests covering HTTP behavior and database-backed flows.
+
+## Expected frontend organization
+
+- `frontend/index.html`: Trunk entry page and stylesheet hooks.
+- `frontend/src/main.rs`: client bootstrap and app mount.
+- `frontend/src/app.rs`: root app component.
+- `frontend/src/api.rs`: fetch wrapper for backend endpoints.
+- `frontend/src/store.rs`: reactive todo state, optimistic transitions if needed, initial load logic.
+- `frontend/src/filter.rs`: filter enum plus hash fragment synchronization.
+- `frontend/src/components/`
+  - `header.rs`
+  - `main.rs`
+  - `todo_item.rs`
+  - `footer.rs`
+- `frontend/static/` or `frontend/public/`: vendored TodoMVC CSS and static assets, depending on Trunk layout choice.
+
+## Shared crate responsibilities
+
+- `shared/src/lib.rs`: re-export DTO modules.
+- `shared/src/todos.rs`: `TodoDto`, `CreateTodoRequest`, `UpdateTodoRequest`, `ToggleAllRequest`, `TodoFilter` if shared semantics are useful.
+- Keep `shared` free of transport/runtime concerns so both backend and frontend can depend on it without pulling in server-only or wasm-hostile crates.
+
+## Data model
+
+- `todos` table:
+  - `id UUID PRIMARY KEY`
+  - `title TEXT NOT NULL`
+  - `completed BOOLEAN NOT NULL DEFAULT FALSE`
+  - `created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`
+  - `updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`
+- Backend owns persistence-only fields and mapping to DTOs.
+- API responses should return complete todo items after each mutation to keep frontend state reconciliation simple.
+
+## Route shape
+
+- `GET /api/todos`
+- `POST /api/todos`
+- `PATCH /api/todos/:id`
+- `DELETE /api/todos/:id`
+- `POST /api/todos/toggle-all`
+- `POST /api/todos/clear-completed`
+- Non-API routes fall back to the Leptos/Trunk bundle once frontend serving is added.
+
+## Issue dependency order
+
+1. Workspace and crate scaffolding: #1, #2, #3
+2. Shared config and local/dev runtime support: #4, #5
+3. Database foundation: #6, #7, #8
+4. Shared API contract: #9
+5. Basic backend HTTP surface: #10, #11, #12, #13, #14
+6. Frontend visual foundation and transport: #15, #16
+7. Frontend state and components: #17 through #23
+8. Validation and polish: #24, #25, #26, #27
+
+## Cross-issue design decisions
+
+- Use UUID identifiers from the start to avoid future client/server ID mismatches and to keep repository APIs stable.
+- Keep backend repository methods explicit rather than generic; the TodoMVC domain is small and clearer with purpose-built functions.
+- Put DTOs in `shared` and keep SQLx row structs backend-local so database schema changes do not leak directly into the UI.
+- Use JSON endpoints under `/api` and reserve all other paths for static frontend delivery.
+- Prefer a single `AppState` in the backend holding config and `PgPool`.
+- Use integration tests for backend issue coverage and lightweight browser smoke tests for frontend behavior, with spec conformance review left as a dedicated final pass rather than mixed into implementation issues.
