@@ -1,5 +1,6 @@
 use leptos::prelude::*;
 
+use crate::header::Header;
 use crate::todos::TodosStore;
 
 #[component]
@@ -13,15 +14,7 @@ pub fn App() -> impl IntoView {
 
     view! {
         <section class="todoapp">
-            <header class="header">
-                <h1>"todos"</h1>
-                <input
-                    class="new-todo"
-                    placeholder="What needs to be done?"
-                    autocomplete="off"
-                    autofocus
-                />
-            </header>
+            <Header />
 
             <section class=move || if has_todos() { "main" } else { "main hidden" }>
                 <input id="toggle-all" class="toggle-all" type="checkbox" />
