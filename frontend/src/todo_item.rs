@@ -66,6 +66,8 @@ pub fn TodoItem(todo: Todo) -> impl IntoView {
             <input
                 node_ref=edit_input
                 class="edit"
+                autocomplete="off"
+                spellcheck="false"
                 prop:value=move || draft.get()
                 on:input=move |ev| draft.set(event_target_value(&ev))
                 on:blur={
