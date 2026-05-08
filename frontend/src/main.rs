@@ -1,5 +1,6 @@
 pub mod api;
 mod app;
+pub mod todos;
 
 #[cfg(target_arch = "wasm32")]
 fn main() {
